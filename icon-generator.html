@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Icon Generator - Vetted Extension</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .icon-preview {
+      display: inline-block;
+      margin: 10px;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 10px;
+    }
+    button {
+      background-color: #0077b5;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #005885;
+    }
+    .instructions {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Vetted Extension Icon Generator</h1>
+  
+  <div class="instructions">
+    <p><strong>Instructions:</strong></p>
+    <ol>
+      <li>Click "Generate Icons" to create the icon previews</li>
+      <li>Click each "Download" button to save the PNG files</li>
+      <li>Place the downloaded files in <code>dist/icons/</code> folder</li>
+    </ol>
+  </div>
+  
+  <button onclick="generateIcons()">Generate Icons</button>
+  
+  <div id="previews"></div>
+  
+  <script>
+    function generateIcons() {
+      const sizes = [16, 48, 128];
+      const previewsDiv = document.getElementById('previews');
+      previewsDiv.innerHTML = '';
+      
+      sizes.forEach(size => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw LinkedIn blue background
+        ctx.fillStyle = '#0077b5';
+        ctx.fillRect(0, 0, size, size);
+        
+        // Draw "V" for Vetted
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold ${size * 0.6}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('V', size / 2, size / 2);
+        
+        // Create preview container
+        const container = document.createElement('div');
+        container.className = 'icon-preview';
+        
+        const label = document.createElement('div');
+        label.textContent = `icon${size}.png (${size}x${size})`;
+        label.style.marginBottom = '5px';
+        
+        const downloadBtn = document.createElement('button');
+        downloadBtn.textContent = 'Download';
+        downloadBtn.onclick = () => {
+          canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `icon${size}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          });
+        };
+        
+        container.appendChild(label);
+        container.appendChild(canvas);
+        container.appendChild(document.createElement('br'));
+        container.appendChild(downloadBtn);
+        
+        previewsDiv.appendChild(container);
+      });
+    }
+  </script>
+</body>
+</html>
+

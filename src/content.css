@@ -1,0 +1,33 @@
+.vetted-scrape-button {
+  background-color: #0077b5 !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 20px !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s !important;
+  z-index: 10000 !important;
+  position: relative !important;
+  display: inline-block !important;
+  margin: 10px 0 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.vetted-scrape-button:hover {
+  background-color: #005885 !important;
+}
+
+.vetted-scrape-button:active {
+  background-color: #004d73 !important;
+}
+
+/* Container to prevent conflicts */
+#vetted-scrape-container {
+  margin: 10px 0 !important;
+  padding: 0 !important;
+  z-index: 10000 !important;
+  position: relative !important;
+}
+

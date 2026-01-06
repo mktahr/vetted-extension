@@ -1,0 +1,16 @@
+{
+  "name": "vetted-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for scraping LinkedIn profiles",
+  "scripts": {
+    "build": "tsc && npm run copy",
+    "copy": "node scripts/copy-assets.js",
+    "watch": "tsc --watch",
+    "icons": "node scripts/generate-icons.js"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "typescript": "^5.3.3"
+  }
+}
+

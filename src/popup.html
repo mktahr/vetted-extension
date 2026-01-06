@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vetted LinkedIn Scraper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Vetted Profile Scraper</h1>
+    </header>
+    
+    <div id="loading" class="loading">
+      <p>Loading profile data...</p>
+    </div>
+    
+    <div id="editor" class="editor hidden">
+      <form id="profileForm">
+        <div class="form-section">
+          <h2>Basic Information</h2>
+          
+          <div class="form-group">
+            <label for="linkedinUrl">LinkedIn URL</label>
+            <input type="text" id="linkedinUrl" readonly>
+          </div>
+          
+          <div class="form-group">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName">
+          </div>
+          
+          <div class="form-group">
+            <label for="location">Location</label>
+            <input type="text" id="location">
+          </div>
+          
+          <div class="form-group">
+            <label for="currentTitle">Current Title</label>
+            <input type="text" id="currentTitle">
+          </div>
+          
+          <div class="form-group">
+            <label for="currentCompany">Current Company</label>
+            <input type="text" id="currentCompany">
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h2>Experience</h2>
+          
+          <div class="form-group">
+            <label for="yearsExperience">Years of Experience</label>
+            <input type="number" id="yearsExperience" min="0">
+          </div>
+          
+          <div class="form-group">
+            <label for="yearsAtCurrent">Years at Current Company</label>
+            <input type="number" id="yearsAtCurrent" min="0">
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h2>Education</h2>
+          
+          <div class="form-group">
+            <label for="undergradUniversity">Undergraduate University</label>
+            <input type="text" id="undergradUniversity">
+          </div>
+          
+          <div class="form-group">
+            <label for="secondaryUniversity">Masters/Secondary University</label>
+            <input type="text" id="secondaryUniversity">
+          </div>
+          
+          <div class="form-group">
+            <label for="phdUniversity">PhD University</label>
+            <input type="text" id="phdUniversity">
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h2>Tags</h2>
+          
+          <div class="form-group">
+            <label for="skillsTags">Skills Tags (comma-separated)</label>
+            <textarea id="skillsTags" rows="3" placeholder="e.g., JavaScript, Python, React"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="focusAreaTags">Focus Area Tags (comma-separated)</label>
+            <textarea id="focusAreaTags" rows="3" placeholder="e.g., Frontend, Backend, Full Stack"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="excellenceTags">Excellence Tags (comma-separated)</label>
+            <textarea id="excellenceTags" rows="3" placeholder="e.g., Leadership, Innovation"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="domainTags">Domain Tags (comma-separated)</label>
+            <textarea id="domainTags" rows="3" placeholder="e.g., FinTech, Healthcare, SaaS"></textarea>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" rows="4" placeholder="Additional notes about this candidate..."></textarea>
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="submitBtn" class="btn btn-primary">Send to Database</button>
+        </div>
+      </form>
+    </div>
+    
+    <div id="empty" class="empty hidden">
+      <p>No profile data found. Navigate to a LinkedIn profile page and click the "📥 Scrape Profile" button to automatically scrape and send the data.</p>
+    </div>
+    
+    <div id="message" class="message hidden"></div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
+
