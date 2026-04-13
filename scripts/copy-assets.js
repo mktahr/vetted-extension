@@ -4,6 +4,7 @@ const path = require('path');
 // Copy non-TypeScript files to dist
 const filesToCopy = [
   { src: 'src/popup.html', dest: 'dist/popup.html' },
+  { src: 'src/popup.css', dest: 'dist/popup.css' },
   { src: 'src/content.css', dest: 'dist/content.css' },
   { src: 'manifest.json', dest: 'dist/manifest.json' }
 ];

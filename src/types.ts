@@ -1,47 +1,55 @@
-export interface CanonicalProfile {
-  linkedin_url: string;
-  full_name: string | null;
-  location_resolved: string | null;
-  current_company: string | null;
-  current_title: string | null;
-  years_experience: number | null;
-  years_at_current_company: number | null;
-  undergrad_university: string | null;
-  secondary_university: string | null;
-  phd_university: string | null;
-  skills_tags: string[] | null;
-  focus_area_tags: string[] | null;
-  excellence_tags: string[] | null;
-  domain_tags: string[] | null;
-  notes: string | null;
+// ─── Types matching the ingest API contract ───────────────────────────────
+
+export interface RawExperience {
+  company_name?: string;
+  title?: string;
+  start_date?: string;
+  end_date?: string;
+  is_current?: boolean;
+  duration_months?: number;
+  description?: string;
+  employment_type?: string;
 }
 
-export interface RawProfile {
-  [key: string]: any;
+export interface RawEducation {
+  school_name?: string;
+  degree?: string;
+  field_of_study?: string;
+  start_year?: number;
+  end_year?: number;
+}
+
+export interface CanonicalProfile {
+  full_name?: string;
+  location_resolved?: string | null;
+  headline_raw?: string | null;
+  summary_raw?: string | null;
+  current_company?: string | null;
+  current_title?: string | null;
+  employment_type?: string | null;
+  years_experience?: number | null;
+  years_at_current_company?: number | null;
+  experiences?: RawExperience[];
+  education?: RawEducation[];
 }
 
 export interface IngestPayload {
   linkedin_url: string;
-  raw_json: RawProfile;
+  full_name: string;
   canonical_json: CanonicalProfile;
+  raw_json: Record<string, unknown>;
 }
 
 export interface ScrapedData {
-  name?: string;
-  fullName?: string;
-  location?: string;
-  currentCompany?: string;
-  currentTitle?: string;
-  experience?: {
-    years?: number;
-    yearsAtCurrent?: number;
-  };
-  education?: {
-    undergraduate?: string;
-    masters?: string;
-    phd?: string;
-  };
-  skills?: string[];
-  [key: string]: any;
+  url: string;
+  fullName: string;
+  location: string;
+  headline: string;
+  summary: string;
+  currentTitle: string;
+  currentCompany: string;
+  employmentType: string;
+  experiences: RawExperience[];
+  education: RawEducation[];
+  rawVoyager?: Record<string, unknown>;
 }
-

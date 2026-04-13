@@ -1,217 +1,229 @@
-// Popup script for editing and submitting profile data
+// Popup — displays scraped profile data with a Send button
 
-import { CanonicalProfile, RawProfile, IngestPayload } from './types';
+interface RawExperience {
+  company_name?: string;
+  title?: string;
+  start_date?: string;
+  end_date?: string;
+  is_current?: boolean;
+  duration_months?: number;
+  description?: string;
+  employment_type?: string;
+}
 
-interface FormData {
-  linkedinUrl: string;
+interface RawEducation {
+  school_name?: string;
+  degree?: string;
+  field_of_study?: string;
+  start_year?: number;
+  end_year?: number;
+}
+
+interface ScrapedData {
+  url: string;
   fullName: string;
   location: string;
+  headline: string;
+  summary: string;
   currentTitle: string;
   currentCompany: string;
-  yearsExperience: string;
-  yearsAtCurrent: string;
-  undergradUniversity: string;
-  secondaryUniversity: string;
-  phdUniversity: string;
-  skillsTags: string;
-  focusAreaTags: string;
-  excellenceTags: string;
-  domainTags: string;
-  notes: string;
+  employmentType: string;
+  experiences: RawExperience[];
+  education: RawEducation[];
 }
 
-function parseTags(tagString: string): string[] | null {
-  if (!tagString || !tagString.trim()) return null;
-  return tagString.split(',').map(tag => tag.trim()).filter(Boolean);
+interface CanonicalProfile {
+  full_name?: string;
+  location_resolved?: string | null;
+  headline_raw?: string | null;
+  summary_raw?: string | null;
+  current_company?: string | null;
+  current_title?: string | null;
+  employment_type?: string | null;
+  years_experience?: number | null;
+  years_at_current_company?: number | null;
+  experiences?: RawExperience[];
+  education?: RawEducation[];
 }
 
-function parseNumber(value: string): number | null {
-  if (!value || !value.trim()) return null;
-  const num = parseInt(value, 10);
-  return isNaN(num) ? null : num;
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function $(id: string): HTMLElement | null { return document.getElementById(id); }
+function show(id: string) { $(id)?.classList.remove('hidden'); }
+function hide(id: string) { $(id)?.classList.add('hidden'); }
+
+function esc(s: string): string {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 
-function parseString(value: string): string | null {
-  if (!value || !value.trim()) return null;
-  return value.trim();
+function fmtDuration(m: number | undefined): string {
+  if (!m) return '';
+  const y = Math.floor(m / 12);
+  const mo = m % 12;
+  if (y > 0 && mo > 0) return `${y} yr${y > 1 ? 's' : ''} ${mo} mo${mo > 1 ? 's' : ''}`;
+  if (y > 0) return `${y} yr${y > 1 ? 's' : ''}`;
+  return `${mo} mo${mo > 1 ? 's' : ''}`;
 }
 
-function getFormData(): FormData {
-  return {
-    linkedinUrl: (document.getElementById('linkedinUrl') as HTMLInputElement)?.value || '',
-    fullName: (document.getElementById('fullName') as HTMLInputElement)?.value || '',
-    location: (document.getElementById('location') as HTMLInputElement)?.value || '',
-    currentTitle: (document.getElementById('currentTitle') as HTMLInputElement)?.value || '',
-    currentCompany: (document.getElementById('currentCompany') as HTMLInputElement)?.value || '',
-    yearsExperience: (document.getElementById('yearsExperience') as HTMLInputElement)?.value || '',
-    yearsAtCurrent: (document.getElementById('yearsAtCurrent') as HTMLInputElement)?.value || '',
-    undergradUniversity: (document.getElementById('undergradUniversity') as HTMLInputElement)?.value || '',
-    secondaryUniversity: (document.getElementById('secondaryUniversity') as HTMLInputElement)?.value || '',
-    phdUniversity: (document.getElementById('phdUniversity') as HTMLInputElement)?.value || '',
-    skillsTags: (document.getElementById('skillsTags') as HTMLTextAreaElement)?.value || '',
-    focusAreaTags: (document.getElementById('focusAreaTags') as HTMLTextAreaElement)?.value || '',
-    excellenceTags: (document.getElementById('excellenceTags') as HTMLTextAreaElement)?.value || '',
-    domainTags: (document.getElementById('domainTags') as HTMLTextAreaElement)?.value || '',
-    notes: (document.getElementById('notes') as HTMLTextAreaElement)?.value || ''
-  };
+// ─── Render ────────────────────────────────────────────────────────────────
+
+function render(data: ScrapedData, lastResult: { success: boolean; message: string } | null) {
+  hide('empty');
+  show('preview');
+
+  // Status
+  if (lastResult) {
+    const b = $('statusBanner');
+    if (b) {
+      b.textContent = lastResult.success ? 'Sent to database' : lastResult.message;
+      b.className = `status-banner ${lastResult.success ? 'success' : 'error'}`;
+    }
+  }
+
+  // Profile header
+  const nameEl = $('prevName');
+  if (nameEl) nameEl.textContent = data.fullName || '—';
+
+  const headlineEl = $('prevHeadline');
+  if (headlineEl) headlineEl.textContent = data.headline || '';
+  if (!data.headline && headlineEl) headlineEl.style.display = 'none';
+
+  const locEl = $('prevLocation');
+  if (locEl) locEl.textContent = data.location || '';
+
+  const urlEl = $('prevUrl') as HTMLAnchorElement | null;
+  if (urlEl) { urlEl.href = data.url; urlEl.textContent = data.url.replace('https://www.linkedin.com', ''); }
+
+  // Current role
+  const roleEl = $('prevCurrentRole');
+  if (roleEl) {
+    const parts: string[] = [];
+    if (data.currentTitle) parts.push(data.currentTitle);
+    if (data.currentCompany) parts.push(`at ${data.currentCompany}`);
+    roleEl.textContent = parts.join(' ') || data.headline || '—';
+  }
+
+  // Experience
+  if (data.experiences.length > 0) {
+    show('experienceSection');
+    const countEl = $('expCount');
+    if (countEl) countEl.textContent = String(data.experiences.length);
+
+    const list = $('experienceList');
+    if (list) {
+      list.innerHTML = '';
+      for (const exp of data.experiences) {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const title = exp.title || '—';
+        const company = exp.company_name || '';
+        const empType = exp.employment_type ? ` · ${exp.employment_type}` : '';
+
+        // Build date string
+        const dateParts: string[] = [];
+        if (exp.start_date) dateParts.push(exp.start_date);
+        if (dateParts.length > 0 || exp.is_current || exp.end_date) {
+          dateParts.push(exp.is_current ? 'Present' : (exp.end_date || ''));
+        }
+        const dateStr = dateParts.filter(Boolean).join(' – ');
+        const dur = fmtDuration(exp.duration_months);
+        const meta = [dateStr, dur].filter(Boolean).join(' · ');
+
+        let html = `<div class="card-title">${esc(title)}</div>`;
+        if (company) html += `<div class="card-sub">${esc(company)}${esc(empType)}</div>`;
+        if (meta) html += `<div class="card-meta">${esc(meta)}</div>`;
+        card.innerHTML = html;
+        list.appendChild(card);
+      }
+    }
+  }
+
+  // Education
+  if (data.education.length > 0) {
+    show('educationSection');
+    const countEl = $('eduCount');
+    if (countEl) countEl.textContent = String(data.education.length);
+
+    const list = $('educationList');
+    if (list) {
+      list.innerHTML = '';
+      for (const edu of data.education) {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const school = edu.school_name || '—';
+        const parts: string[] = [];
+        if (edu.degree) parts.push(edu.degree);
+        if (edu.field_of_study) parts.push(edu.field_of_study);
+        const degreeStr = parts.join(', ');
+        const years = edu.start_year && edu.end_year
+          ? `${edu.start_year} – ${edu.end_year}`
+          : (edu.end_year ? String(edu.end_year) : '');
+
+        let html = `<div class="card-title">${esc(school)}</div>`;
+        if (degreeStr) html += `<div class="card-sub">${esc(degreeStr)}</div>`;
+        if (years) html += `<div class="card-meta">${esc(years)}</div>`;
+        card.innerHTML = html;
+        list.appendChild(card);
+      }
+    }
+  }
+
+  // Summary
+  if (data.summary) {
+    show('summarySection');
+    const el = $('prevSummary');
+    if (el) el.textContent = data.summary;
+  }
 }
 
-function formDataToCanonical(formData: FormData, originalRaw: RawProfile): CanonicalProfile {
-  return {
-    linkedin_url: formData.linkedinUrl,
-    full_name: parseString(formData.fullName),
-    location_resolved: parseString(formData.location),
-    current_company: parseString(formData.currentCompany),
-    current_title: parseString(formData.currentTitle),
-    years_experience: parseNumber(formData.yearsExperience),
-    years_at_current_company: parseNumber(formData.yearsAtCurrent),
-    undergrad_university: parseString(formData.undergradUniversity),
-    secondary_university: parseString(formData.secondaryUniversity),
-    phd_university: parseString(formData.phdUniversity),
-    skills_tags: parseTags(formData.skillsTags),
-    focus_area_tags: parseTags(formData.focusAreaTags),
-    excellence_tags: parseTags(formData.excellenceTags),
-    domain_tags: parseTags(formData.domainTags),
-    notes: parseString(formData.notes)
-  };
-}
+// ─── Init ──────────────────────────────────────────────────────────────────
 
-function populateForm(canonical: CanonicalProfile, raw: RawProfile) {
-  (document.getElementById('linkedinUrl') as HTMLInputElement).value = canonical.linkedin_url;
-  (document.getElementById('fullName') as HTMLInputElement).value = canonical.full_name || '';
-  (document.getElementById('location') as HTMLInputElement).value = canonical.location_resolved || '';
-  (document.getElementById('currentTitle') as HTMLInputElement).value = canonical.current_title || '';
-  (document.getElementById('currentCompany') as HTMLInputElement).value = canonical.current_company || '';
-  (document.getElementById('yearsExperience') as HTMLInputElement).value = canonical.years_experience?.toString() || '';
-  (document.getElementById('yearsAtCurrent') as HTMLInputElement).value = canonical.years_at_current_company?.toString() || '';
-  (document.getElementById('undergradUniversity') as HTMLInputElement).value = canonical.undergrad_university || '';
-  (document.getElementById('secondaryUniversity') as HTMLInputElement).value = canonical.secondary_university || '';
-  (document.getElementById('phdUniversity') as HTMLInputElement).value = canonical.phd_university || '';
-  (document.getElementById('skillsTags') as HTMLTextAreaElement).value = canonical.skills_tags?.join(', ') || '';
-  (document.getElementById('focusAreaTags') as HTMLTextAreaElement).value = canonical.focus_area_tags?.join(', ') || '';
-  (document.getElementById('excellenceTags') as HTMLTextAreaElement).value = canonical.excellence_tags?.join(', ') || '';
-  (document.getElementById('domainTags') as HTMLTextAreaElement).value = canonical.domain_tags?.join(', ') || '';
-  (document.getElementById('notes') as HTMLTextAreaElement).value = canonical.notes || '';
-}
-
-function showMessage(text: string, isError: boolean = false) {
-  const messageEl = document.getElementById('message');
-  if (!messageEl) return;
-  
-  messageEl.textContent = text;
-  messageEl.className = `message ${isError ? 'error' : 'success'}`;
-  messageEl.classList.remove('hidden');
-  
-  setTimeout(() => {
-    messageEl.classList.add('hidden');
-  }, 5000);
-}
-
-// Load data when popup opens
 document.addEventListener('DOMContentLoaded', () => {
-  const loadingEl = document.getElementById('loading');
-  const editorEl = document.getElementById('editor');
-  const emptyEl = document.getElementById('empty');
-  
-  chrome.storage.local.get(['scrapedData', 'linkedinUrl', 'canonicalData', 'lastResult', 'lastScrapeTime'], (result) => {
-    if (loadingEl) loadingEl.classList.add('hidden');
-    
-    // Show last result if available
-    if (result.lastResult) {
-      if (result.lastResult.success) {
-        showMessage('Profile successfully sent to database!', false);
-      } else {
-        showMessage(result.lastResult.message || 'Error sending profile', true);
-      }
-    }
-    
-    // Check if we have recent scraped data (within last 5 minutes)
-    const hasRecentData = result.lastScrapeTime && (Date.now() - result.lastScrapeTime < 5 * 60 * 1000);
-    
-    if (result.scrapedData && result.canonicalData && result.linkedinUrl) {
-      if (editorEl) editorEl.classList.remove('hidden');
-      populateForm(result.canonicalData, result.scrapedData);
-      
-      // Log what we're showing
-      console.log('[Vetted Extension] Popup showing scraped data:', {
-        name: result.canonicalData.full_name,
-        company: result.canonicalData.current_company,
-        title: result.canonicalData.current_title,
-        hasEducation: !!(result.canonicalData.undergrad_university || result.canonicalData.secondary_university || result.canonicalData.phd_university),
-        skillsCount: result.canonicalData.skills_tags?.length || 0
-      });
-    } else {
-      if (emptyEl) {
-        emptyEl.classList.remove('hidden');
-        emptyEl.innerHTML = '<p>No profile data found. Navigate to a LinkedIn profile page and click the "📥 Download Profile" button to scrape and send the profile data.</p>';
-      }
-    }
-  });
-  
-  // Clear badge when popup opens
   chrome.action.setBadgeText({ text: '' });
-  
-  // Handle form submission
-  const form = document.getElementById('profileForm') as HTMLFormElement;
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Sending...';
+
+  chrome.storage.local.get(
+    ['scrapedData', 'canonicalData', 'linkedinUrl', 'lastResult'],
+    (items) => {
+      const data = items.scrapedData as ScrapedData | undefined;
+      if (data && items.linkedinUrl) {
+        render(data, items.lastResult || null);
       }
-      
-      // Get current stored data
-      chrome.storage.local.get(['scrapedData', 'linkedinUrl'], (result) => {
-        const formData = getFormData();
-        const canonical = formDataToCanonical(formData, result.scrapedData || {});
-        
-        const payload: IngestPayload = {
-          linkedin_url: canonical.linkedin_url,
-          raw_json: result.scrapedData || {},
-          canonical_json: canonical
-        };
-        
-        // Send to background script
-        chrome.runtime.sendMessage({
-          action: 'sendToDatabase',
-          linkedinUrl: canonical.linkedin_url,
-          rawJson: payload.raw_json,
-          canonicalJson: payload.canonical_json
-        }, (response) => {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Send to Database';
-          }
-          
-          if (chrome.runtime.lastError) {
-            showMessage(`Error: ${chrome.runtime.lastError.message}`, true);
-          } else if (response && response.success) {
-            showMessage(response.message, false);
-            // Clear storage after successful send
-            chrome.storage.local.remove(['scrapedData', 'linkedinUrl', 'canonicalData']);
-            // Clear badge
-            chrome.action.setBadgeText({ text: '' });
-            // Close popup after 2 seconds
-            setTimeout(() => {
-              window.close();
-            }, 2000);
-          } else {
-            showMessage(response?.message || 'Unknown error occurred', true);
-          }
-        });
+      // Otherwise empty state is already visible
+    }
+  );
+
+  // Send button
+  $('sendBtn')?.addEventListener('click', () => {
+    chrome.storage.local.get(['scrapedData', 'canonicalData', 'linkedinUrl'], (items) => {
+      const data = items.scrapedData as ScrapedData | undefined;
+      const canonical = items.canonicalData as CanonicalProfile | undefined;
+      if (!data || !canonical || !items.linkedinUrl) return;
+
+      const btn = $('sendBtn') as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      const payload = {
+        linkedin_url: items.linkedinUrl,
+        full_name: data.fullName,
+        canonical_json: canonical,
+        raw_json: data as unknown as Record<string, unknown>,
+      };
+
+      chrome.runtime.sendMessage({ action: 'sendToDatabase', payload }, (resp) => {
+        btn.disabled = false;
+        btn.textContent = 'Send to Database';
+
+        const banner = $('statusBanner');
+        if (banner && resp) {
+          banner.textContent = resp.success ? 'Sent to database' : resp.message;
+          banner.className = `status-banner ${resp.success ? 'success' : 'error'}`;
+        }
       });
     });
-  }
-  
-  // Handle cancel button
-  const cancelBtn = document.getElementById('cancelBtn');
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', () => {
-      window.close();
-    });
-  }
+  });
 });
-
