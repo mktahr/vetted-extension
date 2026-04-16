@@ -122,6 +122,57 @@ body {
 
 .section:last-of-type { border-bottom: none; }
 
+/* ─── Stats grid (preview summary) ───────────────────────────────────────── */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.stat {
+  background: #f4f6f8;
+  border-radius: 6px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.stat-value.warn {
+  color: #c5221f;
+}
+
+.stat.warn {
+  background: #fce8e6;
+}
+
+.warnings {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fff4e5;
+  border-left: 3px solid #f0ad4e;
+  color: #8a5a00;
+  font-size: 11px;
+  line-height: 1.5;
+  border-radius: 3px;
+}
+
 .section-title {
   font-size: 11px;
   font-weight: 700;

@@ -134,8 +134,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'scrapeComplete') {
     const data: ScrapedData = message.data;
 
-    if (!data.fullName || !data.url) {
-      const msg = 'Scrape failed: missing name or URL. Reload and retry.';
+    const missing: string[] = [];
+    if (!data?.fullName) missing.push('name');
+    if (!data?.url) missing.push('URL');
+    if (missing.length > 0) {
+      const msg = `Scrape failed: missing ${missing.join(' and ')}. Reload the page and retry.`;
       showBadge('!', '#f44336');
       chrome.storage.local.set({ lastResult: { success: false, message: msg } });
       sendResponse({ success: false, message: msg });

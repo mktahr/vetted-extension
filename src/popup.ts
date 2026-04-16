@@ -96,6 +96,50 @@ function render(data: ScrapedData, lastResult: { success: boolean; message: stri
   const urlEl = $('prevUrl') as HTMLAnchorElement | null;
   if (urlEl) { urlEl.href = data.url; urlEl.textContent = data.url.replace('https://www.linkedin.com', ''); }
 
+  // ── Preview stats ────────────────────────────────────────────────────
+  // Compute years of experience from the experience list (excluding internships)
+  let totalMonths = 0;
+  for (const exp of data.experiences) {
+    if (exp.title && /\bintern\b|\binternship\b|\bco-?op\b/i.test(exp.title)) continue;
+    if (exp.duration_months) totalMonths += exp.duration_months;
+  }
+  const yearsExp = totalMonths > 0 ? Math.round(totalMonths / 12) : 0;
+
+  const yearsEl = $('statYears');
+  if (yearsEl) {
+    yearsEl.textContent = yearsExp > 0 ? String(yearsExp) : '—';
+    yearsEl.classList.toggle('warn', yearsExp === 0);
+  }
+
+  const expCountEl = $('statExpCount');
+  if (expCountEl) {
+    expCountEl.textContent = String(data.experiences.length);
+    expCountEl.classList.toggle('warn', data.experiences.length === 0);
+    expCountEl.parentElement?.classList.toggle('warn', data.experiences.length === 0);
+  }
+
+  const eduCountEl = $('statEduCount');
+  if (eduCountEl) {
+    eduCountEl.textContent = String(data.education.length);
+    eduCountEl.classList.toggle('warn', data.education.length === 0);
+    eduCountEl.parentElement?.classList.toggle('warn', data.education.length === 0);
+  }
+
+  // Warnings banner
+  const warnings: string[] = [];
+  if (data.experiences.length === 0) warnings.push('No experience captured — profile may be incomplete');
+  if (data.education.length === 0) warnings.push('No education captured');
+  if (!data.location) warnings.push('No location captured');
+  const warnEl = $('warnings');
+  if (warnEl) {
+    if (warnings.length > 0) {
+      warnEl.textContent = warnings.join(' · ');
+      warnEl.classList.remove('hidden');
+    } else {
+      warnEl.classList.add('hidden');
+    }
+  }
+
   // Current role
   const roleEl = $('prevCurrentRole');
   if (roleEl) {
@@ -182,19 +226,60 @@ function render(data: ScrapedData, lastResult: { success: boolean; message: stri
 
 // ─── Init ──────────────────────────────────────────────────────────────────
 
+/**
+ * Extract the /in/<vanity> path from a LinkedIn URL for comparing "same profile".
+ * Returns null if the URL isn't a LinkedIn profile page.
+ */
+function profileKey(url: string | undefined | null): string | null {
+  if (!url) return null;
+  const m = url.match(/linkedin\.com\/in\/([^\/\?#]+)/);
+  return m ? m[1].toLowerCase() : null;
+}
+
+function renderEmpty(message?: string) {
+  hide('preview');
+  show('empty');
+  if (message) {
+    const emptyEl = $('empty');
+    if (emptyEl) {
+      // The empty element uses a <p> child — update only the message line
+      const p = emptyEl.querySelector('p');
+      if (p) p.innerHTML = message;
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   chrome.action.setBadgeText({ text: '' });
 
-  chrome.storage.local.get(
-    ['scrapedData', 'canonicalData', 'linkedinUrl', 'lastResult'],
-    (items) => {
-      const data = items.scrapedData as ScrapedData | undefined;
-      if (data && items.linkedinUrl) {
+  // First, figure out what profile the user is currently viewing.
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const activeUrl = tabs[0]?.url || '';
+    const activeKey = profileKey(activeUrl);
+
+    chrome.storage.local.get(
+      ['scrapedData', 'canonicalData', 'linkedinUrl', 'lastResult'],
+      (items) => {
+        const data = items.scrapedData as ScrapedData | undefined;
+        const storedKey = profileKey(items.linkedinUrl);
+
+        // Not on a LinkedIn profile page at all
+        if (!activeKey) {
+          renderEmpty('Navigate to a LinkedIn profile and click <strong>Vetted</strong> to scrape.');
+          return;
+        }
+
+        // Stored data is for a different profile (or missing)
+        if (!data || !storedKey || storedKey !== activeKey) {
+          renderEmpty('Click <strong>Vetted</strong> on this profile to scrape it.');
+          return;
+        }
+
+        // Storage matches the active profile — render it
         render(data, items.lastResult || null);
       }
-      // Otherwise empty state is already visible
-    }
-  );
+    );
+  });
 
   // Send button
   $('sendBtn')?.addEventListener('click', () => {
