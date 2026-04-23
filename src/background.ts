@@ -46,6 +46,7 @@ interface CanonicalProfile {
   employment_type?: string | null;
   years_experience?: number | null;
   years_at_current_company?: number | null;
+  skills_tags?: string[] | null;
   experiences?: RawExperience[];
   education?: RawEducation[];
 }
@@ -84,6 +85,7 @@ function buildCanonical(data: ScrapedData): CanonicalProfile {
     employment_type: data.employmentType || null,
     years_experience: totalMonths > 0 ? Math.round(totalMonths / 12) : null,
     years_at_current_company: yearsAtCurrent,
+    skills_tags: data.skills_tags && data.skills_tags.length > 0 ? data.skills_tags : null,
     experiences: data.experiences.length > 0 ? data.experiences : undefined,
     education: data.education.length > 0 ? data.education : undefined,
   };

@@ -39,6 +39,7 @@ interface ScrapedData {
   employmentType: string;
   experiences: ScrapedExperience[];
   education: ScrapedEducation[];
+  skills_tags: string[];
   rawVoyager?: Record<string, unknown>;
 }
 
@@ -914,7 +915,7 @@ function parseVoyagerData(): ScrapedData {
   const data: ScrapedData = {
     url, fullName: '', location: '', headline: '', summary: '',
     currentTitle: '', currentCompany: '', employmentType: '',
-    experiences: [], education: [],
+    experiences: [], education: [], skills_tags: [],
     rawVoyager: { ...voyagerCache },
   };
 
@@ -1084,6 +1085,26 @@ function parseVoyagerData(): ScrapedData {
     const c = t.replace(/\s*\|\s*LinkedIn\s*$/i, '').trim();
     const d = c.match(/^(.+?)\s*[-–—]\s*(.+)$/);
     data.fullName = d ? d[1].trim() : c;
+  }
+
+  // ── Skills extraction from Voyager skills response ──────────────────────
+  // LinkedIn's profileSkill API returns entities with a `name` field.
+  // We extract unique skill names into skills_tags[].
+  if (voyagerCache.skills) {
+    const skillEntities = collectEntities(voyagerCache.skills);
+    const skillNames = new Set<string>();
+    for (const entity of skillEntities) {
+      // Voyager skill entities have { name: "Python", ... } or { skill: { name: "Python" } }
+      const name = typeof entity.name === 'string' ? entity.name.trim()
+        : typeof (entity as Record<string, unknown>).skill === 'object'
+          ? ((entity as Record<string, unknown>).skill as Record<string, unknown>)?.name as string
+          : null;
+      if (name && name.length > 0 && name.length < 80) {
+        skillNames.add(name);
+      }
+    }
+    data.skills_tags = Array.from(skillNames);
+    console.log(`[Vetted] Extracted ${data.skills_tags.length} skills:`, data.skills_tags.slice(0, 10));
   }
 
   return data;
