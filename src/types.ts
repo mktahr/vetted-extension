@@ -17,6 +17,9 @@ export interface RawEducation {
   field_of_study?: string;
   start_year?: number;
   end_year?: number;
+  description?: string;     // free-text notes under the entry
+  activities?: string;      // LinkedIn "Activities and Societies"
+  grade?: string;           // GPA, Latin honors, class rank, etc.
 }
 
 export interface CanonicalProfile {

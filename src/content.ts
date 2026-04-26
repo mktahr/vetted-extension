@@ -9,7 +9,9 @@
 
 // ─── Interfaces ────────────────────────────────────────────────────────────
 
-interface ScrapedExperience {
+// Names match background.ts and types.ts so global declaration merging works.
+// (content.ts has no top-level import/export, so its interfaces become global.)
+interface RawExperience {
   company_name?: string;
   title?: string;
   start_date?: string;
@@ -20,12 +22,15 @@ interface ScrapedExperience {
   employment_type?: string;
 }
 
-interface ScrapedEducation {
+interface RawEducation {
   school_name?: string;
   degree?: string;
   field_of_study?: string;
   start_year?: number;
   end_year?: number;
+  description?: string;
+  activities?: string;
+  grade?: string;
 }
 
 interface ScrapedData {
@@ -37,11 +42,15 @@ interface ScrapedData {
   currentTitle: string;
   currentCompany: string;
   employmentType: string;
-  experiences: ScrapedExperience[];
-  education: ScrapedEducation[];
-  skills_tags: string[];
+  experiences: RawExperience[];
+  education: RawEducation[];
+  skills_tags?: string[];
   rawVoyager?: Record<string, unknown>;
 }
+
+// Local aliases so the rest of content.ts can keep its existing names.
+type ScrapedExperience = RawExperience;
+type ScrapedEducation = RawEducation;
 
 // ─── Voyager data cache ────────────────────────────────────────────────────
 
@@ -895,6 +904,19 @@ function extractEducationFromEntity(
   else if (typeof obj.degree === 'string') edu.degree = obj.degree;
 
   if (typeof obj.fieldOfStudy === 'string') edu.field_of_study = obj.fieldOfStudy;
+
+  // Free-text fields LinkedIn surfaces under each education entry. They're
+  // optional — most profiles populate at least `activities` if any.
+  // `description` and `grade` are common spots for honors, GPA, awards.
+  const desc = extractDescription(obj.description);
+  if (desc) edu.description = desc;
+
+  const activities = extractDescription(obj.activities);
+  if (activities) edu.activities = activities;
+
+  if (typeof obj.grade === 'string' && obj.grade.trim()) {
+    edu.grade = obj.grade.trim();
+  }
 
   const tp = obj.dateRange || obj.timePeriod;
   if (tp && typeof tp === 'object') {
