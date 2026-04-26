@@ -108,6 +108,10 @@ function computeYearsOfExperience(experiences: RawExperience[]): number | null {
 
   const intervals: [number, number][] = [];
   for (const exp of experiences) {
+    // Skip null/empty title — Voyager occasionally returns position groups
+    // with no title (high-school-era jobs, malformed entries). These are
+    // low-confidence and should not anchor years calculations.
+    if (!exp.title || !exp.title.trim()) continue;
     if (isInternTitle(exp.title)) continue;
     if (!isQualifyingEmployment(exp.employment_type)) continue;
 
