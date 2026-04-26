@@ -12,6 +12,7 @@ interface ScrapedData {
   currentTitle: string;
   currentCompany: string;
   employmentType: string;
+  skills_tags?: string[];
   experiences: RawExperience[];
   education: RawEducation[];
   rawVoyager?: Record<string, unknown>;
@@ -58,14 +59,98 @@ interface IngestPayload {
   raw_json: Record<string, unknown>;
 }
 
+// ─── Years-of-experience computation ───────────────────────────────────────
+
+/** Parse an experience date string ("Jan 2020", "2018", etc) into {year, month}. */
+function parseExpDate(s: string | undefined): { year: number; month: number } | null {
+  if (!s) return null;
+  const lo = s.trim().toLowerCase();
+  const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  for (let i = 0; i < months.length; i++) {
+    if (lo.startsWith(months[i])) {
+      const y = lo.match(/(\d{4})/);
+      if (y) return { year: parseInt(y[1]), month: i + 1 };
+    }
+  }
+  if (/^\d{4}$/.test(lo)) return { year: parseInt(lo), month: 1 };
+  return null;
+}
+
+function toMonthIndex(d: { year: number; month: number }): number {
+  return d.year * 12 + (d.month - 1);
+}
+
+/**
+ * Employment types that count toward years of experience.
+ * User decision: keep full_time + unknown/blank; exclude advisory, board,
+ * part_time, freelance, contract, internship.
+ */
+function isQualifyingEmployment(empType: string | undefined): boolean {
+  const et = (empType || '').toLowerCase().trim();
+  if (!et) return true; // blank → treat as full-time
+  if (/^full[\s-]?time$/.test(et) || et === 'permanent') return true;
+  if (/^(advisor|advisory|board|part[\s-]?time|freelance|freelancer|contract|contractor|consulting|consultant|intern|internship|co[\s-]?op|seasonal|apprenticeship|temporary)/.test(et)) return false;
+  return true; // other unknown types → treat as full-time (err toward counting)
+}
+
+function isInternTitle(title: string | undefined): boolean {
+  return !!title && /\bintern\b|\binternship\b|\bco-?op\b/i.test(title);
+}
+
+/**
+ * Compute years of experience by merging overlapping date intervals of
+ * qualifying (full-time) roles. This avoids double-counting concurrent
+ * roles (e.g. a founder who also sits on 3 boards) and side gigs.
+ */
+function computeYearsOfExperience(experiences: RawExperience[]): number | null {
+  const now = new Date();
+  const nowIdx = now.getFullYear() * 12 + now.getMonth();
+
+  const intervals: [number, number][] = [];
+  for (const exp of experiences) {
+    if (isInternTitle(exp.title)) continue;
+    if (!isQualifyingEmployment(exp.employment_type)) continue;
+
+    const start = parseExpDate(exp.start_date);
+    if (!start) continue;
+
+    const startIdx = toMonthIndex(start);
+    let endIdx: number;
+    if (exp.is_current) {
+      endIdx = nowIdx;
+    } else {
+      const end = parseExpDate(exp.end_date);
+      endIdx = end ? toMonthIndex(end) : nowIdx;
+    }
+    if (endIdx < startIdx) continue;
+    intervals.push([startIdx, endIdx]);
+  }
+
+  if (intervals.length === 0) return null;
+
+  // Merge overlapping and adjacent intervals
+  intervals.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const [s, e] of intervals) {
+    if (merged.length === 0) { merged.push([s, e]); continue; }
+    const last = merged[merged.length - 1];
+    if (s <= last[1] + 1) {
+      last[1] = Math.max(last[1], e);
+    } else {
+      merged.push([s, e]);
+    }
+  }
+
+  const totalMonths = merged.reduce((sum, [s, e]) => sum + (e - s + 1), 0);
+  const years = Math.round(totalMonths / 12);
+  console.log('[Vetted] Years-of-experience:', { intervalsIn: intervals.length, mergedIntervals: merged.length, totalMonths, years });
+  return years > 0 ? years : null;
+}
+
 // ─── Build canonical profile from scraped data ─────────────────────────────
 
 function buildCanonical(data: ScrapedData): CanonicalProfile {
-  let totalMonths = 0;
-  for (const exp of data.experiences) {
-    if (exp.title && /\bintern\b|\binternship\b|\bco-?op\b/i.test(exp.title)) continue;
-    if (exp.duration_months) totalMonths += exp.duration_months;
-  }
+  const yearsExperience = computeYearsOfExperience(data.experiences);
 
   let yearsAtCurrent: number | null = null;
   if (data.experiences.length > 0) {
@@ -83,7 +168,7 @@ function buildCanonical(data: ScrapedData): CanonicalProfile {
     current_company: data.currentCompany || null,
     current_title: data.currentTitle || null,
     employment_type: data.employmentType || null,
-    years_experience: totalMonths > 0 ? Math.round(totalMonths / 12) : null,
+    years_experience: yearsExperience,
     years_at_current_company: yearsAtCurrent,
     skills_tags: data.skills_tags && data.skills_tags.length > 0 ? data.skills_tags : null,
     experiences: data.experiences.length > 0 ? data.experiences : undefined,
@@ -93,7 +178,19 @@ function buildCanonical(data: ScrapedData): CanonicalProfile {
 
 // ─── Send to API ───────────────────────────────────────────────────────────
 
-async function sendToAPI(payload: IngestPayload, retry = 0): Promise<{ success: boolean; message: string }> {
+interface SendResult {
+  success: boolean;
+  message: string;
+  person_id?: string;
+  current_function?: string | null;
+  current_specialty?: string | null;
+  current_seniority?: string | null;
+  current_title_normalized?: string | null;
+  bucket?: string | null;
+  total_score?: number | null;
+}
+
+async function sendToAPI(payload: IngestPayload, retry = 0): Promise<SendResult> {
   console.log('[Vetted] Sending to API:', payload.linkedin_url);
 
   try {
@@ -114,7 +211,17 @@ async function sendToAPI(payload: IngestPayload, retry = 0): Promise<{ success: 
 
     const body = await resp.json().catch(() => null);
     console.log('[Vetted] API success:', body);
-    return { success: true, message: body?.message || 'Profile ingested successfully' };
+    return {
+      success: true,
+      message: body?.message || 'Profile ingested successfully',
+      person_id: body?.person_id,
+      current_function: body?.current_function ?? null,
+      current_specialty: body?.current_specialty ?? null,
+      current_seniority: body?.current_seniority ?? null,
+      current_title_normalized: body?.current_title_normalized ?? null,
+      bucket: body?.bucket ?? null,
+      total_score: body?.total_score ?? null,
+    };
   } catch (err) {
     if (retry === 0) {
       await new Promise(r => setTimeout(r, 1000));
@@ -215,6 +322,40 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.storage.local.get(['scrapedData', 'canonicalData', 'linkedinUrl', 'lastResult', 'lastScrapeTime'], (items) => {
       sendResponse(items);
     });
+    return true;
+  }
+
+  if (message.action === 'patchPerson') {
+    // Body: { personId: string, updates: { current_function_normalized?, current_title_normalized?, current_specialty_normalized?, current_seniority_normalized? } }
+    const url = `https://vetted-self.vercel.app/api/people/${encodeURIComponent(message.personId)}`;
+    fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-ingest-secret': INGEST_SECRET,
+      },
+      body: JSON.stringify(message.updates || {}),
+    })
+      .then(async resp => {
+        const body = await resp.json().catch(() => null);
+        if (!resp.ok) {
+          sendResponse({ success: false, message: body?.error || `HTTP ${resp.status}` });
+          return;
+        }
+        // Merge the new bucket/score into lastResult so the popup can reflect it
+        chrome.storage.local.get(['lastResult'], (items) => {
+          const updated = {
+            ...(items.lastResult || {}),
+            bucket: body?.bucket ?? items.lastResult?.bucket ?? null,
+            total_score: body?.total_score ?? items.lastResult?.total_score ?? null,
+          };
+          chrome.storage.local.set({ lastResult: updated });
+          sendResponse({ success: true, message: body?.message || 'Updated', bucket: body?.bucket, total_score: body?.total_score });
+        });
+      })
+      .catch(err => {
+        sendResponse({ success: false, message: err instanceof Error ? err.message : 'Network error' });
+      });
     return true;
   }
 });
