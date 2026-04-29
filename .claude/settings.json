@@ -41,7 +41,8 @@
       "Bash(perl -ne 'while \\(/\\(role=\"button\"[^>]*class=\"_0cce0ebe.{0,1000}\\)/g\\) { print \"$&\\\\n===\\\\n\" }' /Users/matt/Desktop/DEV/vetted-extension/linkedin-sample.html)",
       "Bash(perl -ne 'while \\(/\\(.{0,200}_8969c64b.{0,10}componentkey=\"e38bf281.{0,600}\\)/g\\) { print \"$&\\\\n===\\\\n\" }' /Users/matt/Desktop/DEV/vetted-extension/linkedin-sample.html)",
       "Bash(perl -ne 'while \\(/\\(.{0,100}500\\\\+.{0,400}\\)/g\\) { print \"$&\\\\n===\\\\n\" }' /Users/matt/Desktop/DEV/vetted-extension/linkedin-sample.html)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "Read(//Users/matt/Desktop/Screenshots/**)"
     ],
     "additionalDirectories": [
       "/Users/matt/Desktop/DEV/vetted-app/app/api/ingest"

@@ -24,6 +24,11 @@
       <!-- Status banner -->
       <div id="statusBanner" class="status-banner hidden"></div>
 
+      <!-- View-in-Vetted link (shown after successful send) -->
+      <a id="vettedLink" class="vetted-link hidden" href="#" target="_blank">
+        View in Vetted →
+      </a>
+
       <!-- Profile header -->
       <div class="profile-header">
         <h2 id="prevName" class="profile-name"></h2>
@@ -58,6 +63,30 @@
       <div class="section">
         <div class="section-title">Current Role</div>
         <div id="prevCurrentRole" class="current-role"></div>
+      </div>
+
+      <!-- Editable tags -->
+      <div class="section">
+        <div class="section-title">Tags <span id="tagsBucket" class="bucket-pill hidden"></span></div>
+        <div class="tags-row">
+          <div class="tag-control">
+            <div class="tag-label">Function</div>
+            <select id="tagFunction" class="tag-select">
+              <!-- options populated by popup.ts -->
+            </select>
+          </div>
+          <div class="tag-control">
+            <div class="tag-label">Specialty</div>
+            <select id="tagSpecialty" class="tag-select">
+            </select>
+          </div>
+          <div class="tag-control">
+            <div class="tag-label">Seniority</div>
+            <select id="tagSeniority" class="tag-select">
+            </select>
+          </div>
+        </div>
+        <button id="updateTagsBtn" class="update-tags-btn hidden">Update Tags</button>
       </div>
 
       <!-- Experience -->

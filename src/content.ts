@@ -961,9 +961,41 @@ function parseVoyagerData(): ScrapedData {
   console.log('[Vetted] Parser — entity kinds:', typeCounts);
 
   // ── Profile info (from profile cache slot) ───────────────────────────────
-  const profileEntities = collectEntities(voyagerCache.profile);
-  for (const obj of profileEntities) {
-    // Profile identity entity has firstName+lastName
+  // CRITICAL: the FullProfileWithEntities decoration returns the viewed
+  // profile's entities PLUS the logged-in viewer's profile entity (for
+  // features like mutual connections). We MUST filter to only the viewed
+  // profile's entity by matching publicIdentifier against the URL vanity,
+  // otherwise we'll grab the viewer's name/headline/location by accident.
+  const vanity = getViewedVanityName();
+  const allProfileEntities = collectEntities(voyagerCache.profile);
+
+  // Preferred: entities where publicIdentifier matches the URL vanity
+  let viewedProfileEntities = allProfileEntities.filter(
+    e => typeof e.publicIdentifier === 'string' &&
+         e.publicIdentifier.toLowerCase() === vanity.toLowerCase()
+  );
+
+  // If no publicIdentifier match, narrow by the profileUrn we already extracted
+  // for positions/education calls
+  if (viewedProfileEntities.length === 0) {
+    const extractedUrn = extractProfileUrn(voyagerCache.profile, vanity);
+    if (extractedUrn) {
+      viewedProfileEntities = allProfileEntities.filter(
+        e => typeof e.entityUrn === 'string' && e.entityUrn === extractedUrn
+      );
+    }
+  }
+
+  // Final fallback: all profile entities (legacy behavior — may be wrong, but
+  // better than nothing)
+  if (viewedProfileEntities.length === 0) {
+    console.warn('[Vetted] Could not identify viewed profile entity — falling back to all entities (name may be wrong)');
+    viewedProfileEntities = allProfileEntities;
+  } else {
+    console.log(`[Vetted] Filtered profile entities: ${viewedProfileEntities.length}/${allProfileEntities.length} match viewed profile`);
+  }
+
+  for (const obj of viewedProfileEntities) {
     if (obj.firstName && obj.lastName) {
       if (!data.fullName) {
         data.fullName = `${obj.firstName} ${obj.lastName}`.trim();
