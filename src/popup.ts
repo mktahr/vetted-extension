@@ -496,6 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
         full_name: data.fullName,
         canonical_json: canonical,
         raw_json: data as unknown as Record<string, unknown>,
+        source: 'chrome_extension_voyager' as const,
+        source_version: chrome.runtime.getManifest().version,
       };
 
       chrome.runtime.sendMessage({ action: 'sendToDatabase', payload }, (resp) => {
