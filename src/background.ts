@@ -57,6 +57,8 @@ interface IngestPayload {
   full_name: string;
   canonical_json: CanonicalProfile;
   raw_json: Record<string, unknown>;
+  source: string;
+  source_version?: string;
 }
 
 // ─── Years-of-experience computation ───────────────────────────────────────
@@ -283,6 +285,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       full_name: data.fullName,
       canonical_json: canonical,
       raw_json: rawJson,
+      source: 'chrome_extension_voyager',
+      source_version: chrome.runtime.getManifest().version,
     };
 
     // Store for popup preview

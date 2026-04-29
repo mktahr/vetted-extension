@@ -32,6 +32,7 @@ export interface CanonicalProfile {
   employment_type?: string | null;
   years_experience?: number | null;
   years_at_current_company?: number | null;
+  skills_tags?: string[] | null;
   experiences?: RawExperience[];
   education?: RawEducation[];
 }
@@ -41,6 +42,8 @@ export interface IngestPayload {
   full_name: string;
   canonical_json: CanonicalProfile;
   raw_json: Record<string, unknown>;
+  source: string;
+  source_version?: string;
 }
 
 export interface ScrapedData {
@@ -52,6 +55,7 @@ export interface ScrapedData {
   currentTitle: string;
   currentCompany: string;
   employmentType: string;
+  skills_tags?: string[];
   experiences: RawExperience[];
   education: RawEducation[];
   rawVoyager?: Record<string, unknown>;
